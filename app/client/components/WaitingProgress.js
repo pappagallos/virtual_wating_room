@@ -1,22 +1,63 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 // Style
 import styles from "../client.module.css";
 
 export default function WaitingProgress({ myWaitingTicket }) {
+  const intervalRef = useRef(null);
+  const myWaitingNumberRef = useRef(null);
+
   const [waiting, setWaiting] = useState({
-    totalWaiting: 0,
-    myWaitingNumber: 0,
+    totalWaiting: null,
+    myWaitingNumber: null,
   });
+  const processing = Number.parseInt(
+    100 - 100 * (waiting.myWaitingNumber / myWaitingNumberRef.current),
+    10
+  );
+
+  const fetchWaitingStatus = async () => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL_PREFIX}/queue/${myWaitingTicket.data}`,
+      { method: "GET" }
+    );
+    const { data } = await response.json();
+
+    if (!myWaitingNumberRef.current)
+      myWaitingNumberRef.current = data.my_waiting_number;
+
+    setWaiting((prevState) => ({
+      ...prevState,
+      totalWaiting: data.total_waiting,
+      myWaitingNumber: data.my_waiting_number,
+    }));
+  };
+
+  useEffect(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(fetchWaitingStatus, 1000);
+  }, []);
+
+  if (!intervalRef.current) {
+    return (
+      <div className={styles.pending}>
+        <p>
+          잠시만 기다려주세요.
+          <br />
+          대기열에 입장하고 있습니다.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.waiting_info}>
       <h3>에어프레미아 항공권 예약 대기열</h3>
       <div className={styles.progress_bar}>
-        <div className={styles.progress}>
-          <span>1%</span>
+        <div className={styles.progress} style={{ width: `${processing}%` }}>
+          <span>{processing}%</span>
         </div>
       </div>
       <div className={styles.waiting_number}>
