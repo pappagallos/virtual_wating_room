@@ -10,7 +10,17 @@ import AirPremiaLogo from "../../public/assets/airpremia_logo.svg";
 // 스타일
 import styles from "./client.module.css";
 
-export default function page() {
+export default async function page() {
+  const assignWaitingTicket = async () => {
+    const resposne = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL_PREFIX}/assign`,
+      { method: "POST" }
+    );
+    return await resposne.json();
+  };
+
+  const myWaitingTicket = await assignWaitingTicket();
+
   return (
     <div className={styles.virtual_waiting_room}>
       <div className={styles.room}>
@@ -27,7 +37,7 @@ export default function page() {
           loop
         ></video>
       </div>
-      <WaitingProgress />
+      <WaitingProgress myWaitingTicket={myWaitingTicket} />
       <div className={styles.copyright}>
         <p>©2024 Air Premia, Inc. All rights reserved.</p>
       </div>

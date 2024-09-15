@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 // Style
 import styles from "../client.module.css";
 
-export default function WaitingProgress() {
+export default function WaitingProgress({ myWaitingTicket }) {
   const [waiting, setWaiting] = useState({
     totalWaiting: 0,
     myWaitingNumber: 0,
