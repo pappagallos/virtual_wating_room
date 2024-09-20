@@ -51,7 +51,7 @@ export default function WaitingProgress({ myWaitingTicket }) {
   useEffect(() => {
     updateClientMetaData();
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(fetchWaitingStatus, 1000);
+    intervalRef.current = setInterval(fetchWaitingStatus, 5000);
   }, []);
 
   if (!intervalRef.current) {
