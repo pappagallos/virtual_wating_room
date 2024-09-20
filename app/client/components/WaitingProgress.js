@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import platform from "platform";
 
 // Style
 import styles from "../client.module.css";
@@ -17,6 +18,13 @@ export default function WaitingProgress({ myWaitingTicket }) {
     100 - 100 * (waiting.myWaitingNumber / myWaitingNumberRef.current),
     10
   );
+
+  const updateClientMetaData = async () => {
+    await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL_PREFIX}/assign/${myWaitingTicket.data}`,
+      { method: "PUT", body: JSON.stringify({ meta_data: platform }) }
+    );
+  };
 
   const fetchWaitingStatus = async () => {
     const response = await fetch(
@@ -36,6 +44,7 @@ export default function WaitingProgress({ myWaitingTicket }) {
   };
 
   useEffect(() => {
+    updateClientMetaData();
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(fetchWaitingStatus, 1000);
   }, []);
