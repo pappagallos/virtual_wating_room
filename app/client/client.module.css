@@ -64,6 +64,7 @@
   height: inherit;
   border-radius: 25px;
   background: #e34028;
+  transition: .4s;
 }
 
 .waiting_info .progress_bar .progress span {
