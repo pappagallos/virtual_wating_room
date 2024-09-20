@@ -15,18 +15,23 @@ export default function WaitingProgress({ myWaitingTicket }) {
     myWaitingNumber: null,
   });
   const processing = Number.parseInt(
-    100 - 100 * (waiting.myWaitingNumber ?? 1 / myWaitingNumberRef.current),
+    100 - 100 * safeDivide(waiting.myWaitingNumber, myWaitingNumberRef.current),
     10
   );
 
-  const updateClientMetaData = async () => {
+  function safeDivide(a, b) {
+    if (a === 0 && b === 0) return 0;
+    return a / b;
+  }
+
+  async function updateClientMetaData() {
     await fetch(
       `${process.env.NEXT_PUBLIC_API_URL_PREFIX}/assign/${myWaitingTicket.data}`,
       { method: "PUT", body: JSON.stringify({ meta_data: platform }) }
     );
-  };
+  }
 
-  const fetchWaitingStatus = async () => {
+  async function fetchWaitingStatus() {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL_PREFIX}/queue/${myWaitingTicket.data}`,
       { method: "GET" }
@@ -41,7 +46,7 @@ export default function WaitingProgress({ myWaitingTicket }) {
       totalWaiting: data.total_waiting,
       myWaitingNumber: data.my_waiting_number,
     }));
-  };
+  }
 
   useEffect(() => {
     updateClientMetaData();
