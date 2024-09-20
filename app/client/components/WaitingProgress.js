@@ -15,7 +15,7 @@ export default function WaitingProgress({ myWaitingTicket }) {
     myWaitingNumber: null,
   });
   const processing = Number.parseInt(
-    100 - 100 * (waiting.myWaitingNumber / myWaitingNumberRef.current),
+    100 - 100 * (waiting.myWaitingNumber ?? 1 / myWaitingNumberRef.current),
     10
   );
 
