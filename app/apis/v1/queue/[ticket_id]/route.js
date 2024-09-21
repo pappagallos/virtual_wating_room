@@ -5,47 +5,40 @@ import { NextResponse } from "next/server";
 
 import jwt from "jsonwebtoken";
 
-import { pool } from "@/app/lib/database";
-
 const privateKey = fs.readFileSync(`${process.env.PWD}/certs/private.pem`);
 
-async function issueAccessToken(myWaitingNumber, ticketId) {
+async function issueAccessToken(myWaitingNumber, ticketUUID) {
   if (myWaitingNumber > 0) return null;
-
-  const redisKey = `metadata:${ticketId}`;
-  const existsTicket = await redisClient.exists(redisKey);
-  if (existsTicket) {
-    const metaData = await redisClient.get(redisKey);
-    return jwt.sign({ meta_data: metaData }, privateKey, {
-      algorithm: "RS512",
-      expiresIn: "1h",
-    });
-  }
-}
-
-async function getMetaDataFromDB(ticketId) {
-  const promisePool = pool.promise();
-
-  // await promisePool.execute("SELECT ")
+  return jwt.sign({ ticket_uuid: ticketUUID }, privateKey, {
+    algorithm: "RS512",
+    expiresIn: "1h",
+  });
 }
 
 export async function GET(_, { params }) {
-  const ticketId = params.ticket_id;
-  if (!ticketId)
+  const ticketUUID = params.ticket_id;
+  if (!ticketUUID)
     NextResponse.json({ result: false, message: "비정상적인 호출입니다." });
 
   const totalWaiting = await redisClient.LRANGE("waiting", 0, -1);
   const myTicketIndex = totalWaiting.findIndex(
-    (ticket) => ticket.split(":")[0] === ticketId
+    (ticket) => ticket.split(":")[0] === ticketUUID
   );
   const myWaitingNumber = totalWaiting.length - (myTicketIndex + 1);
 
-  await redisClient.LSET(
-    "waiting",
-    myTicketIndex,
-    `${ticketId}:${new Date().getTime()}`
-  );
-  const accessToken = await issueAccessToken(myWaitingNumber, ticketId);
+  // 만약 사용자 차례가 되어 입장할 수 있게되면 ticket 발행 처리
+  const accessToken = await issueAccessToken(myWaitingNumber, ticketUUID);
+  if (accessToken) {
+    // ticket 발행 처리
+    await redisClient.LSET("waiting", myTicketIndex, `${ticketUUID}:issued`);
+  } else {
+    // healthCheck 시간 기록
+    await redisClient.LSET(
+      "waiting",
+      myTicketIndex,
+      `${ticketUUID}:${new Date().getTime()}`
+    );
+  }
 
   // Redis를 사용하지 않고 Database를 이용해서 구축할 경우 {
   // const promisePool = pool.promise();
