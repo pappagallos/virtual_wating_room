@@ -13,7 +13,7 @@ export const redisClient = await createClient()
  * Redis에 발행된 Waiting ticket을 데이터베이스에 INSERT하는 함수
  * @returns
  */
-export async function insertWaitingTicket() {
+export async function insertTicket() {
   // MySQL Connector 생성
   const mysqlConnection = await mysql.createConnection({
     host: process.env.NEXT_PUBLIC_DB_HOST,
@@ -84,5 +84,55 @@ export async function insertWaitingTicket() {
     // destroy 하지 않으면 "SHOW STATUS LIKE 'Threads_connected';" 질의 시 Connection이 누적되어 접속 마비 유발
     if (mysqlConnection) mysqlConnection.destroy();
     console.log("insertWaitingTicket 완료");
+  }
+}
+
+export async function deleteCanceledTicket(pingFrequency = 60) {
+  const frequency = pingFrequency * 1000;
+
+  // MySQL Connector 생성
+  const mysqlConnection = await mysql.createConnection({
+    host: process.env.NEXT_PUBLIC_DB_HOST,
+    user: process.env.NEXT_PUBLIC_DB_USER,
+    password: process.env.NEXT_PUBLIC_DB_PASSWORD,
+    database: process.env.NEXT_PUBLIC_DB_DATABASE,
+  });
+
+  try {
+    const deleteTickets = [];
+    const currentTime = new Date().getTime();
+    const waitingTickets = await redisClient.LRANGE("waiting", 0, -1);
+    if (waitingTickets.length <= 0) return;
+
+    for (let i = 0, length = waitingTickets.length; i < length; ++i) {
+      const redisKey = waitingTickets[i];
+      const [_, ticketTime] = redisKey.split(":");
+      // 만약 healthCheck 시간이 현재 시간보다 frequency 이상이면 사용하지 않는 waitingTicket으로 간주하고 삭제 처리
+      if (currentTime - ticketTime >= frequency) deleteTickets.push(redisKey);
+    }
+
+    if (deleteTickets.length > 0) {
+      await mysqlConnection.beginTransaction();
+      await mysqlConnection.execute(
+        `UPDATE waiting 
+      SET deleted_date = NOW(6) 
+      WHERE ticket_uuid IN (
+      ${deleteTickets
+        .map((ticket) => `UUID_TO_BIN('${ticket.split(":")[0]}')`)
+        .join(",")})`
+      );
+      await mysqlConnection.commit();
+
+      // 데이터베이스에 Delete 처리된 deleteTickets을 Redis에서도 데이터 제거하여 대기열 줄이기
+      for (let i = 0, length = deleteTickets.length; i < length; ++i) {
+        // 2번째 count 인자를 0으로 하면 모든 값에서 deleteTickets[i]를 삭제하라는 의미
+        redisClient.LREM("waiting", 0, deleteTickets[i]);
+      }
+    }
+  } catch (error) {
+    console.error(error);
+  } finally {
+    if (mysqlConnection) mysqlConnection.destroy();
+    console.log("healthCheck 완료");
   }
 }
