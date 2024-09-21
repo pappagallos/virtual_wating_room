@@ -7,7 +7,7 @@ import { redisClient } from "@/app/lib/redis";
 export async function POST() {
   const uuid = uuidv4();
 
-  await redisClient.LPUSH("waiting", uuid);
+  await redisClient.LPUSH("waiting", `${uuid}:${new Date().getTime()}`);
 
   // Redis를 사용하지 않고 Database를 이용해서 구축할 경우 {
   // const promisePool = pool.promise();
