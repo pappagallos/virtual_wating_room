@@ -9,7 +9,11 @@ export const redisClient = await createClient()
   .on("error", (err) => console.log("Redis Client Error", err))
   .connect();
 
-export async function updateMetadata() {
+/**
+ * Redis에 발행된 Waiting ticket을 데이터베이스에 INSERT하는 함수
+ * @returns
+ */
+export async function insertWaitingTicket() {
   // MySQL Connector 생성
   const mysqlConnection = await mysql.createConnection({
     host: process.env.NEXT_PUBLIC_DB_HOST,
@@ -34,10 +38,7 @@ export async function updateMetadata() {
           MATCH: "metadata:*",
         }
       );
-      if (keys.length <= 0) {
-        console.log("Insert할 Metadata가 없습니다.");
-        return;
-      }
+      if (keys.length <= 0) return;
 
       cursorStore.previousCursor = cursorStore.currentCursor;
       cursorStore.currentCursor = cursor;
@@ -82,6 +83,6 @@ export async function updateMetadata() {
   } finally {
     // destroy 하지 않으면 "SHOW STATUS LIKE 'Threads_connected';" 질의 시 Connection이 누적되어 접속 마비 유발
     if (mysqlConnection) mysqlConnection.destroy();
-    console.log("Metadata INSERT 완료");
+    console.log("insertWaitingTicket 완료");
   }
 }
