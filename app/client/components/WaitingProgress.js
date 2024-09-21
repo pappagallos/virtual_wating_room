@@ -13,6 +13,7 @@ export default function WaitingProgress({ myWaitingTicket }) {
   const [waiting, setWaiting] = useState({
     totalWaiting: null,
     myWaitingNumber: null,
+    accessToken: null,
   });
   const processing = Number.parseInt(
     100 - 100 * safeDivide(waiting.myWaitingNumber, myWaitingNumberRef.current),
@@ -38,14 +39,18 @@ export default function WaitingProgress({ myWaitingTicket }) {
     );
     const { data } = await response.json();
 
+    // accessToken이 발급되었을 경우 Queue API 호출 중단
+    if (data.access_token && intervalRef.current)
+      clearInterval(intervalRef.current);
+
     if (!myWaitingNumberRef.current)
       myWaitingNumberRef.current = data.my_waiting_number;
 
-    setWaiting((prevState) => ({
-      ...prevState,
+    setWaiting({
       totalWaiting: data.total_waiting,
       myWaitingNumber: data.my_waiting_number,
-    }));
+      accessToken: data.access_token,
+    });
   }
 
   useEffect(() => {
