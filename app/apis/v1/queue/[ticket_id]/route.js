@@ -35,9 +35,16 @@ export async function GET(_, { params }) {
     NextResponse.json({ result: false, message: "비정상적인 호출입니다." });
 
   const totalWaiting = await redisClient.LRANGE("waiting", 0, -1);
-  const myWaitingNumber =
-    totalWaiting.length -
-    (totalWaiting.findIndex((ticket) => ticket === ticketId) + 1);
+  const myTicketIndex = totalWaiting.findIndex(
+    (ticket) => ticket.split(":")[0] === ticketId
+  );
+  const myWaitingNumber = totalWaiting.length - (myTicketIndex + 1);
+
+  await redisClient.LSET(
+    "waiting",
+    myTicketIndex,
+    `${ticketId}:${new Date().getTime()}`
+  );
   const accessToken = await issueAccessToken(myWaitingNumber, ticketId);
 
   // Redis를 사용하지 않고 Database를 이용해서 구축할 경우 {
