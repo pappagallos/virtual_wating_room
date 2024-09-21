@@ -87,6 +87,45 @@ export async function insertTicket() {
   }
 }
 
+export async function issueTicket() {
+  // MySQL Connector 생성
+  const mysqlConnection = await mysql.createConnection({
+    host: process.env.NEXT_PUBLIC_DB_HOST,
+    user: process.env.NEXT_PUBLIC_DB_USER,
+    password: process.env.NEXT_PUBLIC_DB_PASSWORD,
+    database: process.env.NEXT_PUBLIC_DB_DATABASE,
+  });
+
+  try {
+    const waitingTickets = await redisClient.LRANGE("waiting", 0, -1);
+    const issuedTickets = waitingTickets
+      .filter((ticket) => ticket.split(":")[1] === "issued")
+      .map((ticket) => ticket.split(":")[0]);
+
+    if (issuedTickets.length > 0) {
+      await mysqlConnection.beginTransaction();
+      await mysqlConnection.execute(
+        `UPDATE waiting 
+      SET issued_date = NOW(6) 
+      WHERE ticket_uuid IN (
+      ${issuedTickets.map((ticket) => `UUID_TO_BIN('${ticket}')`).join(",")})`
+      );
+      await mysqlConnection.commit();
+    }
+
+    // 데이터베이스에 Delete 처리된 issuedTickets을 Redis에서도 데이터 제거하여 대기열 줄이기
+    for (let i = 0, length = issuedTickets.length; i < length; ++i) {
+      // 2번째 count 인자를 0으로 하면 모든 값에서 issuedTickets[i]를 삭제하라는 의미
+      redisClient.LREM("waiting", 0, `${issuedTickets[i]}:issued`);
+    }
+  } catch (error) {
+    console.error(error);
+  } finally {
+    if (mysqlConnection) mysqlConnection.destroy();
+    console.log("issueTicket 완료");
+  }
+}
+
 export async function deleteCanceledTicket(pingFrequency = 60) {
   const frequency = pingFrequency * 1000;
 
